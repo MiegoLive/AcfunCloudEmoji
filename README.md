@@ -44,9 +44,10 @@ AcFun 网页直播目前不支持主播上传自定义表情包，观众无法�
 
 ```json
 {
-  "主播UID": "123456",
-  "字典生成时间": "2025-08-26T12:00:00Z",
-  "表情包": {
+  "uid": "123456",
+  "time": "2025-08-26T08:13:51Z",
+  "timestamp": 1756196031,
+  "emotions": {
     "[蛇年AC娘_威胁]": "https://cdn.aixifan.com/ac233.png",
     "[AC娘_比心]": "https://cdn.aixifan.com/ac666.png"
   }
