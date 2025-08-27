@@ -14,7 +14,8 @@ public static class Helper
         }
     };
     
-    private const string UserSpace = "https://www.acfun.cn/u/";
+    private const string ArticleListUrl =
+        "https://www.acfun.cn/u/{0}?quickViewId=ac-space-article-list&ajaxpipe=1&type=article&order=newest&page=1&pageSize={1}&t={2}reqId={3}";
     private const string ArticleUrl = "https://www.acfun.cn/a/";
     
     /// <summary>
@@ -26,8 +27,16 @@ public static class Helper
             throw new ArgumentException("uid 不能为空");
 
         // 1. 找文章 id
-        var spaceHtml = await Http.GetStringAsync($"{UserSpace}{uid}");
-        var m = Regex.Match(spaceHtml, @"<a[^>]*\shref=""/a/(ac\d+)""[^>]*title=[""'][^""']*直播间表情");
+        // 毫秒时间戳
+        var timestamp = (int)(DateTimeOffset.Now.ToUnixTimeMilliseconds() / 1000);
+        var articleListJsonString = await Http.GetStringAsync(
+            string.Format(ArticleListUrl, uid, 100, timestamp, 1));
+        // 去除末尾的注释
+        articleListJsonString = Regex.Replace(articleListJsonString, @"/\*.*?\*/", "");
+        var articleListJson = JsonSerializer.Deserialize<JsonObject>(articleListJsonString);
+        var htmlString = articleListJson?["html"]?.ToString();
+        if (string.IsNullOrWhiteSpace(htmlString)) return BuildJson(uid, new JsonObject());
+        var m = Regex.Match(htmlString, @"<a[^>]*\shref=""/a/(ac\d+)""[^>]*title=[""'][^""']*直播间表情");
         if (!m.Success) return BuildJson(uid, new JsonObject());
         var acId = m.Groups[1].Value;
 

@@ -1,5 +1,4 @@
 // helper.mjs
-const USER_SPACE = 'https://www.acfun.cn/u/';
 const ARTICLE_URL = 'https://www.acfun.cn/a/';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -17,8 +16,17 @@ export async function getEmotionsJson(uid) {
   }
 
   // 1. 找文章 id
-  const spaceHtml = await (await fetch(`${USER_SPACE}${uid}`, { headers: { 'User-Agent': UA } })).text();
-  const m = spaceHtml.match(/<a[^>]*\shref="\/a\/(ac\d+)"[^>]*title=['"][^'"]*直播间表情/);
+  const timestamp = new Date().getTime();
+  const reqId = 1;
+  const pageSize = 100;
+  const articleListUrl = `https://www.acfun.cn/u/${uid}?quickViewId=ac-space-article-list&ajaxpipe=1&type=article&order=newest&page=1&pageSize=${pageSize}&t=${timestamp}&reqId=${reqId}`;
+  let articleListJsonString = await (await fetch(articleListUrl, { headers: { 'User-Agent': UA } })).text();
+  // 去除末尾的注释 /* ... */
+  articleListJsonString = articleListJsonString.replace(/\/\*.*?\*\//g, '');
+  const articleListJson = JSON.parse(articleListJsonString);
+  const htmlString = articleListJson.html;
+  if (!htmlString) return buildJson(uid, {});
+  const m = htmlString.match(/<a[^>]*\shref="\/a\/(ac\d+)"[^>]*title=['"][^'"]*直播间表情/);
   if (!m) return buildJson(uid, {});
   const acId = m[1];
 
