@@ -122,7 +122,7 @@ AcfunCloudEmoji/
 
 ### 观众端（使用油猴脚本）
 1.  安装 [Tampermonkey](https://www.tampermonkey.net/)。
-2.  安装脚本：（链接待创建）。
+2.  安装脚本：[![Install](https://img.shields.io/badge/Install-latest-blue?style=flat-square&logo=tampermonkey)](https://github.com/MiegoLive/AcfunCloudEmoji/raw/main/userscripts/acfuncloudemoji.user.js)。
 3.  进入任意支持“云表情”的主播直播间，在弹幕输入框旁即可看到表情包面板。
 
 ## 📢 交流与反馈
