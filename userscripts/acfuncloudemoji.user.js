@@ -6,6 +6,8 @@
 // @author       AcfunCloudEmojiCommunity
 // @match        https://live.acfun.cn/*
 // @grant        GM_xmlhttpRequest
+// @updateURL    https://github.com/MiegoLive/AcfunCloudEmoji/raw/main/userscripts/acfuncloudemoji.user.js
+// @downloadURL  https://github.com/MiegoLive/AcfunCloudEmoji/raw/main/userscripts/acfuncloudemoji.user.js
 // ==/UserScript==
 
 const ARTICLE_URL = 'https://www.acfun.cn/a/';
