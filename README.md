@@ -3,6 +3,8 @@
 > **让 AcFun 直播间的弹幕也能“斗图”！**  
 > 这是一个由社区驱动的开源项目，旨在通过一种巧妙、轻量且对主播与观众都友好的方式，为 AcFun 网页直播引入“表情包弹幕”功能。
 
+我已了解，[🚀快速开始](#quickstart)
+
 ## 📌 项目缘起
 
 AcFun 网页直播目前不支持主播上传自定义表情包，观众无法直接发送“图片弹幕”。  
@@ -114,16 +116,20 @@ AcfunCloudEmoji/
 2.  在支持的主播直播间使用表情包面板发送弹幕。
 3.  向你喜欢的主播推荐这个企划！
 
-## 🚀 快速开始
+## 🚀 快速开始 {#quickstart}
 
 ### 主播端
-1. 发布表情包文章。
-2. 使用集成了本项目功能的弹幕软件。
+1. 发布表情包文章。查看模板：[article-template.md](specs/article-template.md)
+2. 使用集成了本项目功能的弹幕软件：
+   - 如果你正在使用第一代 AcFun 直播工具箱，请**手动**在工具箱中添加一致的表情包关键词与图片。
+   - 如果你正在使用点心 Chat，请更新至 `v1.2.0` 及以上版本。若安装的某些应用未生效云表情功能，请积极联系作者反馈。
 
 ### 观众端（使用油猴脚本）
 1.  安装 [Tampermonkey](https://www.tampermonkey.net/)。
 2.  安装脚本：[![Install](https://img.shields.io/badge/Install-latest-blue?style=flat-square&logo=tampermonkey)](https://github.com/MiegoLive/AcfunCloudEmoji/raw/main/userscripts/acfuncloudemoji.user.js)。
+    - jsdelivr 源: https://cdn.jsdelivr.net/gh/MiegoLive/AcfunCloudEmoji@main/userscripts/acfuncloudemoji.user.js
 3.  进入任意支持“云表情”的主播直播间，在弹幕输入框旁即可看到表情包面板。
+    - 第一次使用时会提示**一个用户脚本试图访问跨源资源**，请选择**总是允许此域名**。这是由于 `live.acfun.cn` 域名与 `www.acfun.cn` 域名不同源导致的。
 
 ## 📢 交流与反馈
 *   **GitHub Issues**：发现问题或建议新功能，请直接提 [Issue](https://github.com/MiegoLive/AcfunCloudEmoji/issues)。
