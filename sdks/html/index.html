@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OBS弹幕插件（云表情版）</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+      }
+
+      #input-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        text-align: center;
+      }
+
+      #url-input {
+        width: 400px;
+        padding: 10px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 15px;
+      }
+
+      #confirm-btn {
+        padding: 10px 30px;
+        background-color: #ff6b6b;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      #confirm-btn:hover {
+        background-color: #ff5252;
+      }
+
+      #iframe-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        z-index: 999;
+      }
+
+      #main-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #ff6b6b;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+        position: relative;
+        top: 5px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error-message {
+        color: #ff6b6b;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="input-container">
+      <h2>请输入AcFun弹幕URL</h2>
+      <input
+        type="text"
+        id="url-input"
+        placeholder="https://live.acfun.cn/room/000000?theme=default&showAuthorclubOnly=false&showAvatar=false"
+      />
+      <br />
+      <button id="confirm-btn">确认</button>
+      <div id="loading-indicator" style="display: none">
+        <span class="loading"></span>
+      </div>
+      <div id="error-message" class="error-message"></div>
+    </div>
+
+    <div id="iframe-container">
+      <iframe
+        id="main-iframe"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+      ></iframe>
+    </div>
+
+    <script>
+      "use strict";
+      // 获取DOM元素
+      const urlInput = document.getElementById("url-input");
+      const confirmBtn = document.getElementById("confirm-btn");
+      const iframeContainer = document.getElementById("iframe-container");
+      const mainIframe = document.getElementById("main-iframe");
+      const loadingIndicator = document.getElementById("loading-indicator");
+      const errorMessage = document.getElementById("error-message");
+
+      // 获取云表情JSON的函数
+      async function getEmotionsJson(uid) {
+        if (!uid || uid.trim() === "") {
+          throw new Error("uid 不能为空");
+        }
+
+        // 1. 找文章 id
+        const timestamp = new Date().getTime();
+        const reqId = 1;
+        const pageSize = 100;
+        const articleListUrl = `https://www.acfun.cn/u/${uid}?quickViewId=ac-space-article-list&ajaxpipe=1&type=article&order=newest&page=1&pageSize=${pageSize}&t=${timestamp}&reqId=${reqId}`;
+
+        console.log("请求文章列表:", articleListUrl);
+        let articleListResponse = await fetch(articleListUrl);
+        let articleListJsonString = await articleListResponse.text();
+
+        // 去除末尾的注释 /* ... */
+        articleListJsonString = articleListJsonString.replace(
+          /\/\*.*?\*\//g,
+          ""
+        );
+        const articleListJson = JSON.parse(articleListJsonString);
+        const htmlString = articleListJson.html;
+
+        if (!htmlString) {
+          console.log("未找到文章列表HTML");
+          return buildJson(uid, {});
+        }
+
+        const m = htmlString.match(
+          /<a[^>]*\shref="\/a\/(ac\d+)"[^>]*title=['"][^'"]*直播间表情/
+        );
+        if (!m) {
+          console.log("未找到直播间表情文章");
+          return buildJson(uid, {});
+        }
+        const acId = m[1];
+        console.log("找到文章ID:", acId);
+
+        // 2. 拿文章正文
+        const articleUrl = `https://www.acfun.cn/a/${acId}`;
+        console.log("请求文章正文:", articleUrl);
+        const articleResponse = await fetch(articleUrl);
+        const articleHtml = await articleResponse.text();
+
+        // 2.1 提取 content
+        const contentMatch = articleHtml.match(
+          /"content":\s?"((?:\\.|(?!")[^\\])*)"/
+        );
+        if (!contentMatch) {
+          console.log("未找到文章内容");
+          return buildJson(uid, {});
+        }
+
+        let rawContent = contentMatch[1];
+        // 解码Unicode转义字符
+        rawContent = rawContent.replace(/\\u([\dA-F]{4})/gi, (match, grp) =>
+          String.fromCharCode(parseInt(grp, 16))
+        );
+
+        // 移除 p span 等标签干扰
+        const content = rawContent.replace(/<(?!img\b)[^>]+>/g, "");
+        console.log("提取到的内容:", content.substring(0, 200) + "...");
+
+        // 3. 收集 [name] -> url
+        const emotions = {};
+        const pattern = /\[(.*?)\].*?<img[^>]*\s+src=\\["']([^"']+)\\["']/gs;
+        let match;
+        while ((match = pattern.exec(content)) !== null) {
+          const name = match[1];
+          const url = match[2].replace(/&amp;/g, "&");
+          emotions[`[${name}]`] = url;
+          console.log(`找到表情: [${name}] -> ${url}`);
+        }
+
+        return buildJson(uid, emotions);
+      }
+
+      function buildJson(uid, emotions) {
+        const now = new Date();
+        const root = {
+          uid,
+          time: now.toISOString(),
+          timestamp: Math.floor(now.getTime() / 1000),
+          emotions,
+        };
+        return JSON.stringify(root, null, 2);
+      }
+
+      // 监听iframe中的表情替换
+      function setupEmojiReplacement(iframe, cloudEmojiString) {
+        let emotions = {};
+        let kwSet = new Set();
+        let mo = null;
+
+        const cloudEmoji = JSON.parse(cloudEmojiString);
+        emotions = cloudEmoji.emotions;
+        console.log("解析后的表情对象:", emotions);
+
+        kwSet = new Set(Object.keys(emotions));
+        console.log("表情关键词集合:", Array.from(kwSet));
+
+        // 等待iframe加载完成
+        iframe.onload = () => {
+          console.log("iframe加载完成");
+          try {
+            const iframeWindow = iframe.contentWindow;
+            const iframeDoc =
+              iframe.contentDocument || iframe.contentWindow.document;
+            console.log("获取到iframe document");
+
+            const _did =
+              "web_" +
+              Math.random().toString(16).substring(2, 10).toUpperCase() +
+              Math.random().toString(16).substring(2, 10).toUpperCase();
+            const inject = `
+(function(){
+const token = '${_did}';
+document.cookie = '_did=' + token + '; path=/; domain=.acfun.cn; SameSite=None; Secure';
+console.log('设置 _did:', document.cookie);
+})();
+`;
+            iframeWindow.eval(inject);
+            // 等待页面完全加载
+            const waitForMessages = () => {
+              const messages = iframeDoc.querySelector(
+                "div.live-feed-messages"
+              );
+              if (messages) {
+                console.log("找到消息容器，开始监听变化");
+                startObserving(messages);
+              } else {
+                console.log("未找到消息容器，1秒后重试");
+                setTimeout(waitForMessages, 1000);
+              }
+            };
+
+            waitForMessages();
+          } catch (e) {
+            console.error("访问iframe内容失败:", e);
+          }
+        };
+
+        function startObserving(messages) {
+          if (mo) {
+            mo.disconnect();
+          }
+
+          mo = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1) {
+                  // 元素节点
+                  processNode(node);
+                }
+              });
+            });
+          });
+
+          mo.observe(messages, { childList: true, subtree: true });
+          console.log("开始监听消息变化");
+
+          // 处理现有消息
+          const existingComments =
+            messages.querySelectorAll("span.comment-text");
+          existingComments.forEach((comment) => processComment(comment));
+        }
+
+        function processNode(node) {
+          if (node.classList && node.classList.contains("comment-text")) {
+            processComment(node);
+          } else if (node.querySelector) {
+            const comments = node.querySelectorAll("span.comment-text");
+            comments.forEach((comment) => processComment(comment));
+          }
+        }
+
+        function processComment(node) {
+          try {
+            let text = node.textContent || node.innerText || "";
+            console.log("处理评论文本:", text);
+
+            // 去除字符串开头的中文冒号
+            text = text.replace(/^：/, "");
+            console.log("清理后的文本:", text);
+
+            if (kwSet.has(text)) {
+              console.log("找到匹配的表情:", text);
+              const img = new Image();
+              img.src = emotions[text];
+              img.style.cssText = "height: 3em; vertical-align: text-bottom;";
+              img.alt = text;
+              img.title = text;
+
+              node.innerHTML = "：";
+              node.appendChild(img);
+              console.log("已替换为图片:", emotions[text]);
+            }
+          } catch (e) {
+            console.error("处理评论失败:", e);
+          }
+        }
+      }
+
+      // 确认按钮点击事件
+      confirmBtn.addEventListener("click", async () => {
+        const url = urlInput.value.trim();
+        if (!url) {
+          showError("请输入URL");
+          return;
+        }
+
+        // 提取UID
+        const uidMatch = url.match(/\/room\/(\d+)/);
+        if (!uidMatch) {
+          showError("无法从URL中提取房间号");
+          return;
+        }
+        const uid = uidMatch[1];
+        console.log("提取到的UID:", uid);
+
+        // 显示加载状态
+        confirmBtn.disabled = true;
+        loadingIndicator.style.display = "inline-block";
+        errorMessage.textContent = "";
+
+        // 保存URL
+        localStorage.setItem("lastUrl", url);
+
+        try {
+          const cloudEmojiString = await getEmotionsJson(uid);
+
+          // 等待iframe加载完成后设置表情替换
+          setupEmojiReplacement(mainIframe, cloudEmojiString);
+
+          // 加载iframe
+          mainIframe.src = url;
+          iframeContainer.style.display = "block";
+
+          // 隐藏输入容器
+          setTimeout(() => {
+            document.getElementById("input-container").style.display = "none";
+          }, 1000);
+        } catch (error) {
+          console.error("加载失败:", error);
+          if (error.message.includes("Failed to fetch")) {
+            showError("加载失败: 请设置obs的跨域启动参数");
+          } else {
+            showError("加载失败: " + error.message);
+          }
+          confirmBtn.disabled = false;
+          loadingIndicator.style.display = "none";
+        }
+      });
+
+      // 回车键确认
+      urlInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          confirmBtn.click();
+        }
+      });
+
+      function showError(message) {
+        errorMessage.textContent = message;
+      }
+
+      // 防止页面刷新时丢失状态
+      window.addEventListener("beforeunload", () => {
+        if (mainIframe.src && mainIframe.src !== "about:blank") {
+          localStorage.setItem("lastUrl", urlInput.value);
+        }
+      });
+
+      // 恢复上次的状态
+      window.addEventListener("load", () => {
+        const lastUrl = localStorage.getItem("lastUrl");
+        if (lastUrl) {
+          urlInput.value = lastUrl;
+        }
+      });
+    </script>
+  </body>
+</html>
