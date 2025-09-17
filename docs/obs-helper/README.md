@@ -47,9 +47,9 @@ https://live.acfun.cn/room/123456?theme=default&showAuthorclubOnly=false&showAva
 2. 在场景中添加「浏览器源」。
 3. 在 URL 栏填入以下任意一个镜像地址（均可用）：
 
-- jsDelivr：`https://cdn.jsdelivr.net/gh/MiegoLive/AcfunCloudEmoji@main/sdks/html/index.html`
-- Statically：`https://cdn.statically.io/gh/MiegoLive/AcfunCloudEmoji/main/sdks/html/index.html`
-- GitHub Raw：`https://raw.githubusercontent.com/MiegoLive/AcfunCloudEmoji/main/sdks/html/index.html`
+- jsDelivr：`https://cdn.jsdelivr.net/gh/MiegoLive/AcfunCloudEmoji@main/docs/obs-helper/index.html`
+- Statically：`https://cdn.statically.io/gh/MiegoLive/AcfunCloudEmoji/main/docs/obs-helper/index.html`
+- GitHub Raw：`https://raw.githubusercontent.com/MiegoLive/AcfunCloudEmoji/main/docs/obs-helper/index.html`
 
 4. 点击「确定」后，页面加载完成。按照页面提示进行交互，在页面中粘贴你在「步骤 2」获取的 AcFun 官方弹幕 URL，即可开始显示带云表情的弹幕。
 
